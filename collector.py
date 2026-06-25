@@ -35,8 +35,7 @@ def connect_imap():
 # ==========================================
 def find_emails(mail):
     print("🔍 Ищем письма с темой 'Привет'...")
-    
-   status, messages = mail.search(None, 'UNSEEN') 
+    status, messages = mail.search(None, 'UNSEEN') 
     
     email_ids = messages[0].split()
     print(f"📬 Найдено писем: {len(email_ids)}")
