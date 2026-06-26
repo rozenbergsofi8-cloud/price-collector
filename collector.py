@@ -31,12 +31,12 @@ def connect_imap():
 
 # ==========================================
 # ШАГ 2: Ищем непрочитанные письма
-#         с темой "Привет"
+#         с темой "Прайс-лист"
 # ==========================================
 def find_emails(mail):
-    print("🔍 Ищем письма с темой 'Привет'...")
-    status, messages = mail.search(None, 'UNSEEN') 
-    
+    print("🔍 Ищем письма с темой 'Прайс-лист'...")
+    status, messages = mail.search(None, 'UNSEEN', 'SUBJECT', 'Прайс-лист')
+
     email_ids = messages[0].split()
     print(f"📬 Найдено писем: {len(email_ids)}")
     return email_ids
@@ -46,19 +46,19 @@ def find_emails(mail):
 # ==========================================
 def get_attachments(mail, email_ids):
     print("📎 Скачиваем вложения...")
-    
+
     files = []
-    
+
     for email_id in email_ids:
         status, msg_data = mail.fetch(email_id, '(RFC822)')
         msg = email.message_from_bytes(msg_data[0][1])
-        
+
         # Имя поставщика
         supplier_name, supplier_addr = email.utils.parseaddr(msg['From'])
         supplier = supplier_name if supplier_name else supplier_addr
-        
+
         print(f"   📧 Письмо от: {supplier}")
-        
+
         # Ищем Excel вложения
         for part in msg.walk():
             filename = part.get_filename()
@@ -70,9 +70,9 @@ def get_attachments(mail, email_ids):
                     filename = filename.decode(decoded[0][1] or 'utf-8')
                 if filename and filename.endswith(('.xlsx', '.xls')):
                     print(f"   📎 Нашли файл: {filename}")
-                file_data = part.get_payload(decode=True)
-                files.append((supplier, file_data, filename))
-    
+                    file_data = part.get_payload(decode=True)
+                    files.append((supplier, file_data, filename))
+
     return files
 
 # ==========================================
@@ -87,25 +87,25 @@ def find_column(df, possible_names):
 
 def build_summary(files):
     print("📊 Формируем сводную таблицу...")
-    
+
     all_data = []
-    
+
     for supplier, file_data, filename in files:
         try:
             df = pd.read_excel(BytesIO(file_data))
-            
+
             print(f"   📋 Файл: {filename} | Строк: {len(df)}")
             print(f"   📋 Колонки: {list(df.columns)}")
-            
+
             article_col = find_column(df, ['артикул', 'article', 'код', 'id'])
             name_col    = find_column(df, ['наименование', 'название', 'товар', 'name'])
             price_col   = find_column(df, ['цена', 'price', 'стоимость', 'cost'])
-            
+
             if not all([article_col, name_col, price_col]):
                 print(f"   ⚠️ Не нашли нужные колонки в {filename}")
                 print(f"   ⚠️ Нужны: Артикул, Наименование, Цена")
                 continue
-            
+
             for _, row in df.iterrows():
                 all_data.append({
                     'Поставщик':    supplier,
@@ -113,10 +113,10 @@ def build_summary(files):
                     'Наименование': row[name_col],
                     'Цена':         row[price_col]
                 })
-                
+
         except Exception as e:
             print(f"   ❌ Ошибка при чтении {filename}: {e}")
-    
+
     result = pd.DataFrame(all_data, columns=['Поставщик', 'Артикул', 'Наименование', 'Цена'])
     print(f"✅ Итого строк: {len(result)}")
     return result
@@ -136,12 +136,12 @@ def save_to_excel(df):
 # ==========================================
 def send_email(filename, total_rows):
     print(f"📤 Отправляем на {COMMERCE_EMAIL} ...")
-    
+
     msg = MIMEMultipart()
     msg['From']    = EMAIL_USER
     msg['To']      = COMMERCE_EMAIL
     msg['Subject'] = 'Сводная таблица цен от поставщиков'
-    
+
     body = f"""
 Добрый день!
 
@@ -152,7 +152,7 @@ def send_email(filename, total_rows):
 Таблица сформирована автоматически.
     """
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
-    
+
     with open(filename, 'rb') as f:
         attachment = MIMEBase('application', 'octet-stream')
         attachment.set_payload(f.read())
@@ -162,11 +162,11 @@ def send_email(filename, total_rows):
             f'attachment; filename="сводная_таблица.xlsx"'
         )
         msg.attach(attachment)
-    
+
     with smtplib.SMTP_SSL(SMTP_SERVER, 465) as server:
         server.login(EMAIL_USER, EMAIL_PASS)
         server.send_message(msg)
-    
+
     print("✅ Письмо отправлено!")
 
 # ==========================================
@@ -176,29 +176,29 @@ def main():
     print("=" * 40)
     print("🤖 РОБОТ ЗАПУЩЕН")
     print("=" * 40)
-    
+
     mail = connect_imap()
     email_ids = find_emails(mail)
-    
+
     if not email_ids:
-        print("📭 Писем с темой 'Привет' не найдено.")
+        print("📭 Писем с темой 'Прайс-лист' не найдено.")
         return
-    
+
     files = get_attachments(mail, email_ids)
-    
+
     if not files:
         print("📭 Excel файлов во вложениях не найдено.")
         return
-    
+
     df = build_summary(files)
-    
+
     if df.empty:
         print("📭 Таблица пустая.")
         return
-    
+
     filename = save_to_excel(df)
     send_email(filename, len(df))
-    
+
     print("=" * 40)
     print("✅ РОБОТ ЗАВЕРШИЛ РАБОТУ")
     print("=" * 40)
