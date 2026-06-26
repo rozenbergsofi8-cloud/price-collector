@@ -69,7 +69,7 @@ def get_attachments(mail, email_ids):
                 if isinstance(filename, bytes):
                     filename = filename.decode(decoded[0][1] or 'utf-8')
                 if filename and filename.endswith(('.xlsx', '.xls')):
-                print(f"   📎 Нашли файл: {filename}")
+                    print(f"   📎 Нашли файл: {filename}")
                 file_data = part.get_payload(decode=True)
                 files.append((supplier, file_data, filename))
     
