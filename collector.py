@@ -62,8 +62,15 @@ def get_attachments(mail, email_ids):
         # Ищем Excel вложения
         for part in msg.walk():
             filename = part.get_filename()
-            
-            if filename and filename.endswith(('.xlsx', '.xls')):
+            # Декодируем имя файла (кириллица)
+    if filename:
+        from email.header import decode_header
+        decoded = decode_header(filename)
+        filename = decoded[0][0]
+        if isinstance(filename, bytes):
+        filename = filename.decode(decoded[0][1] or 'utf-8')
+        
+        if filename and filename.endswith(('.xlsx', '.xls')):
                 print(f"   📎 Нашли файл: {filename}")
                 file_data = part.get_payload(decode=True)
                 files.append((supplier, file_data, filename))
