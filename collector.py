@@ -35,7 +35,16 @@ def connect_imap():
 # ==========================================
 def find_emails(mail):
     print("🔍 Ищем письма с темой 'Прайс-лист'...")
-    status, messages = mail.search(None, 'UNSEEN', 'SUBJECT', 'Прайс-лист')
+    def find_emails(mail):
+        print("🔍 Ищем письма с темой 'Прайс-лист'...")
+    
+    # Кодируем кириллицу для IMAP
+    subject = 'Прайс-лист'.encode('utf-8')
+    status, messages = mail.search(None, 'UNSEEN')
+    
+    email_ids = messages[0].split()
+    print(f"📬 Найдено писем: {len(email_ids)}")
+    return email_ids
 
     email_ids = messages[0].split()
     print(f"📬 Найдено писем: {len(email_ids)}")
